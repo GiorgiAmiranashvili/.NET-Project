@@ -1,0 +1,132 @@
+using System.Collections.Generic;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web.Http;
+using System.Web.Http.Description;
+
+public class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; }
+    public string Author { get; set; }
+}
+
+
+public class BookDbContext : DbContext
+{
+    public DbSet<Book> Books { get; set; }
+}
+
+
+[RoutePrefix("api/books")]
+public class BooksController : ApiController
+{
+    private BookDbContext db = new BookDbContext();
+
+    [HttpGet]
+    [Route("")]
+    public IHttpActionResult GetBooks()
+    {
+        var books = db.Books.ToList();
+        return Ok(books);
+    }
+
+  
+    [HttpGet]
+    [Route("{id:int}", Name = "GetBookById")]
+    public IHttpActionResult GetBook(int id)
+    {
+        var book = db.Books.Find(id);
+        if (book == null)
+        {
+            return NotFound();
+        }
+        return Ok(book);
+    }
+
+  
+    [HttpPost]
+    [Route("")]
+    [ResponseType(typeof(Book))]
+    public IHttpActionResult PostBook(Book book)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        db.Books.Add(book);
+        db.SaveChanges();
+
+        return CreatedAtRoute("GetBookById", new { id = book.Id }, book);
+    }
+
+    [HttpPut]
+    [Route("{id:int}")]
+    [ResponseType(typeof(void))]
+    public IHttpActionResult PutBook(int id, Book book)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (id != book.Id)
+        {
+            return BadRequest();
+        }
+
+        db.Entry(book).State = EntityState.Modified;
+
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!BookExists(id))
+            {
+                return NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        return StatusCode(HttpStatusCode.NoContent);
+    }
+
+
+    [HttpDelete]
+    [Route("{id:int}")]
+    [ResponseType(typeof(Book))]
+    public IHttpActionResult DeleteBook(int id)
+    {
+        var book = db.Books.Find(id);
+        if (book == null)
+        {
+            return NotFound();
+        }
+
+        db.Books.Remove(book);
+        db.SaveChanges();
+
+        return Ok(book);
+    }
+
+    private bool BookExists(int id)
+    {
+        return db.Books.Any(e => e.Id == id);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            db.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+}
